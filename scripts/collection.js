@@ -268,12 +268,16 @@ function updateCatalogLeads() {
 }
 
 function writeSpecFromLead(lead) {
-  var origin = util.getOrigin(lead);
+  var exPatch = _.cloneDeep(lead);
+  var origin = util.getOrigin(exPatch);
+  if (Array.isArray(origin))
+    origin = origin.pop();
   var source = origin.url;
   var format = converter.getFormatName(origin.format, origin.version);
 
-  var exPatch = _.cloneDeep(lead);
-  delete exPatch.info['x-origin'];
+  if (!exPatch.info['x-origin'].length) {
+    delete exPatch.info['x-origin'];
+  }
 
   return writeSpec(source, format, exPatch);
 }
@@ -765,12 +769,14 @@ function convertToSwagger(spec) {
   return spec.convertTo('swagger_2')
     .then(swagger => {
       _.merge(swagger.spec.info, {
-        'x-providerName': parseHost(swagger.spec),
-        'x-origin': {
-          format: spec.formatName,
-          version: spec.getFormatVersion(),
-          url: spec.source
-        }
+        'x-providerName': parseHost(swagger.spec)
+      });
+	  if (!Array.isArray(swagger.spec.info['x-origin']))
+	    swagger.spec.info['x-origin'] = [swagger.spec.info['x-origin']];
+      swagger.spec.info['x-origin'].push({
+        format: spec.formatName,
+        version: spec.getFormatVersion(),
+        url: spec.source
       });
       return swagger.spec;
     });
