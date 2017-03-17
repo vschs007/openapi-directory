@@ -8,6 +8,7 @@ var _ = require('lodash');
 var jp = require('json-pointer');
 var jsonPath = require('jsonpath');
 var converter = require('api-spec-converter');
+var converterVersion = require('api-spec-converter/package.json').version;
 var parseDomain = require('parse-domain');
 var jsonPatch = require('json-merge-patch');
 var YAML = require('js-yaml');
@@ -772,12 +773,19 @@ function convertToSwagger(spec) {
         'x-providerName': parseHost(swagger.spec)
       });
 	  if (!Array.isArray(swagger.spec.info['x-origin']))
-	    swagger.spec.info['x-origin'] = [swagger.spec.info['x-origin']];
-      swagger.spec.info['x-origin'].push({
+        swagger.spec.info['x-origin'] = [swagger.spec.info['x-origin']];
+      var newOrigin = {
         format: spec.formatName,
         version: spec.getFormatVersion(),
         url: spec.source
-      });
+      };
+      if ((newOrigin.format !== 'swagger') || (newOrigin.version !== '2.0')) {
+        newOrigin.converter = {
+            url: 'https://github.com/lucybot/api-spec-converter',
+            version: converterVersion
+        };
+      }
+      swagger.spec.info['x-origin'].push(newOrigin);
       return swagger.spec;
     });
 }
@@ -819,6 +827,9 @@ function applyMergePatch(target, patch) {
 
     if (_.isPlainObject(target[key]))
       return applyMergePatch(target[key], value);
+
+    if ((_.isArray(target[key])) && (_.isArray(value)))
+	  return target[key].concat(value);
 
     assert(_.isUndefined(target[key]), 'Patch tried to override property: ' + key);
     target[key] = value;
